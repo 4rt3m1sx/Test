@@ -191,32 +191,183 @@ function makeMimeMessage(taskId, expectedDue, actionSecret) {
   <script async src="https://cdn.ampproject.org/v0.js"></script>
   <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
   <style amp4email-boilerplate>body{visibility:hidden}</style>
+  <style amp-custom>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f4f5f7;
+      color: #202124;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 28px 16px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e6e8eb;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .header {
+      padding: 24px 26px 18px;
+      border-bottom: 1px solid #eceef1;
+    }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      color: #202124;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+    .intro {
+      margin: 8px 0 0;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .section {
+      padding: 22px 26px 26px;
+    }
+    .section-title {
+      margin: 0 0 12px;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    form {
+      margin: 0;
+    }
+    .task-action,
+    .task-done {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 54px;
+      padding: 14px 16px;
+      border: 1px solid #e2e5e9;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #202124;
+      font-size: 15px;
+      line-height: 1.35;
+      text-align: left;
+    }
+    .task-action {
+      cursor: pointer;
+    }
+    .task-action:hover {
+      background: #f8f9fa;
+    }
+    .box {
+      display: inline-block;
+      box-sizing: border-box;
+      width: 20px;
+      height: 20px;
+      margin-right: 11px;
+      border: 2px solid #8a9099;
+      border-radius: 5px;
+      vertical-align: -4px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 16px;
+    }
+    .task-done {
+      display: none;
+      background: #f7f8f9;
+      color: #60656d;
+    }
+    .task-done .box {
+      border-color: #60656d;
+      background: #60656d;
+      color: #ffffff;
+    }
+    form.amp-form-submitting .task-action {
+      opacity: .55;
+    }
+    form.amp-form-submit-success .task-action {
+      display: none;
+    }
+    form.amp-form-submit-success .task-done {
+      display: block;
+    }
+    .error {
+      margin: 9px 2px 0;
+      color: #a33a3a;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .footer {
+      padding: 0 26px 22px;
+      color: #8a9099;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+  </style>
 </head>
 <body>
-  <h2>Todoist checkbox test</h2>
-  <p>Click the checkbox. It should complete the Todoist task without opening another page.</p>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <p class="eyebrow">Daily Assistant</p>
+        <h1>Interactive task test</h1>
+        <p class="intro">Complete the task here and it will be completed in Todoist.</p>
+      </div>
 
-  <form method="post" action-xhr="${WORKER_BASE_URL}/complete">
-    <input type="hidden" name="task" value="${safeTask}">
-    <input type="hidden" name="due" value="${safeDue}">
-    <input type="hidden" name="key" value="${safeKey}">
-    <button type="submit">&#9744; AMP email completion test</button>
-    <div submitting>Completing in Todoist...</div>
-    <div submit-success>&#9745; AMP email completion test</div>
-    <div submit-error>Could not complete the task. Nothing was changed.</div>
-  </form>
+      <div class="section">
+        <p class="section-title">Do today</p>
+        <form method="post" action-xhr="${WORKER_BASE_URL}/complete">
+          <input type="hidden" name="task" value="${safeTask}">
+          <input type="hidden" name="due" value="${safeDue}">
+          <input type="hidden" name="key" value="${safeKey}">
 
-  <p>Expected result: the checkbox changes here in this email. No new tab or window.</p>
+          <button type="submit" class="task-action">
+            <span class="box"></span>AMP email visual checkbox test
+          </button>
+
+          <div submit-success class="task-done">
+            <span class="box">&#10003;</span>AMP email visual checkbox test
+          </div>
+
+          <div submit-error class="error">Could not complete this task in Todoist. Please try again.</div>
+        </form>
+      </div>
+
+      <div class="footer">Interactive Todoist completion · no new tab or window</div>
+    </div>
+  </div>
 </body>
 </html>`;
 
-  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif"><h2>Todoist checkbox test</h2><p>Your email client did not render the interactive AMP version.</p><p>Do not use this fallback to complete the task.</p></body></html>`;
-  const plain = "Todoist checkbox test\r\n\r\nYour email client did not render the interactive AMP version.\r\n";
+  const html = `<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#202124">
+  <div style="max-width:640px;margin:0 auto;padding:28px 16px">
+    <div style="background:#fff;border:1px solid #e6e8eb;border-radius:14px;padding:26px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280">Daily Assistant</div>
+      <h1 style="font-size:24px;margin:6px 0 10px">Interactive task test</h1>
+      <p style="color:#6b7280;font-size:14px">The interactive version was not available in this email client.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const plain = "Daily Assistant\r\n\r\nInteractive task test\r\nThe interactive version was not available in this email client.\r\n";
 
   const parts = [
     `From: Daily Assistant <${ALLOWED_SENDER}>`,
     `To: ${TEST_RECIPIENT}`,
-    "Subject: AMP Todoist checkbox test",
+    "Subject: Daily Assistant - interactive task test",
     `Date: ${date}`,
     `Message-ID: ${messageId}`,
     "MIME-Version: 1.0",
