@@ -1,69 +1,75 @@
-# Todoist Email Completion Worker
+# Daily Assistant AMP Worker
 
-Small Cloudflare Worker used by Gmail AMP/dynamic email to complete Todoist tasks without opening another browser tab.
+Cloudflare Worker used by the Daily GTD Assistant to deliver Gmail AMP/dynamic emails with interactive Todoist completion.
+
+## Production Worker
+
+Worker name: `daily-assistant`
+
+Production URL:
+
+`https://daily-assistant.lmludick.workers.dev`
 
 ## What it does
 
-- Accepts AMP for Email POST requests from `lydialament@gmail.com` only.
-- Verifies a per-email action secret.
-- Re-reads the Todoist task before completing it.
-- Compares the task's current `due.date` with the occurrence embedded in the email, so an old email cannot accidentally complete a later recurrence.
-- Calls Todoist's `/api/v1/tasks/{task_id}/close` endpoint.
+- Polls the dedicated Daily Assistant Gmail staging mailbox.
+- Converts the staged Daily Assistant payload into a polished multipart AMP email.
+- Sends the user-facing brief from `lydialament@gmail.com` to `lmludick@gmail.com`.
+- Renders each verified Todoist action as an in-email checkbox.
+- Uses a per-task HMAC signature rather than exposing the long-lived action secret in the email.
+- Re-reads the Todoist task before completion.
+- Compares the task's current `due.date` with the occurrence embedded in the email so an old recurring-task email cannot complete a newer occurrence.
+- Completes the Todoist task through the Todoist API without opening a browser tab.
 - Returns the AMP-specific CORS headers Gmail requires.
 
-## Deploy with Cloudflare Git integration
+## Cloudflare Git deployment
 
-1. In Cloudflare, open **Workers & Pages**.
-2. Choose **Create application**.
-3. Under **Import a repository**, connect GitHub.
-4. Select `4rt3m1sx/Test`.
-5. The Worker name must be `todoist-email-complete` to match `wrangler.jsonc`.
-6. Production branch: `master`.
-7. Root directory: leave blank / repository root.
-8. Build command: leave blank.
-9. Deploy command: `npx wrangler deploy`.
-10. Save and deploy.
+The Cloudflare Worker name and the `name` value in `wrangler.jsonc` must both be `daily-assistant`.
 
-Cloudflare should deploy the Worker to a URL similar to:
+Production branch: `master`
 
-`https://todoist-email-complete.<your-subdomain>.workers.dev`
+Root directory: repository root
 
-## Required secrets
+Deploy command: `npx wrangler deploy`
 
-After the Worker exists, go to **Settings → Variables and Secrets** and add both values as encrypted secrets:
+A cron trigger runs the staging mailbox processor every two minutes.
 
-- `TODOIST_TOKEN` — your Todoist personal API token.
-- `EMAIL_ACTION_SECRET` — a long random value used in the AMP form.
+## Required encrypted secrets
 
-Do not commit either secret to GitHub.
+Configure these only in Cloudflare Worker Settings → Variables and Secrets:
+
+- `TODOIST_TOKEN`
+- `EMAIL_ACTION_SECRET`
+- `GMAIL_APP_PASSWORD`
+
+Do not commit any of these values to GitHub.
 
 ## Endpoints
 
 ### `GET /health`
 
-Safe deployment check:
-
-```json
-{"ok":true,"service":"todoist-email-complete"}
-```
+Deployment and service check.
 
 ### `POST /complete`
 
-Used by the AMP email. Expected form fields:
+Used by Gmail AMP forms to complete a signed Todoist task occurrence.
 
-- `task` — Todoist task ID.
-- `due` — current Todoist `due.date`, or `none` for an undated task.
-- `key` — value matching the `EMAIL_ACTION_SECRET` Worker secret.
+Expected form fields:
+
+- `task` — exact Todoist task ID
+- `due` — current Todoist `due.date`, or `none`
+- `sig` — Worker-generated HMAC signature for that task occurrence
 
 The endpoint also requires Gmail AMP for Email CORS metadata identifying `lydialament@gmail.com` as the message sender.
 
-## Security notes
+### `GET /process-staged`
 
-- Todoist credentials exist only as Cloudflare Worker secrets.
-- The API token is never placed in email HTML or this repository.
-- A stale recurring-task occurrence is rejected rather than completing the task's newer occurrence.
-- The `/complete` endpoint rejects ordinary browser requests that do not contain AMP for Email sender/origin metadata.
+Manually runs the staging-mailbox processor. Normal production delivery is handled by the scheduled Worker trigger.
 
-## Next step
+## Security
 
-Once Cloudflare has deployed the Worker, copy its `workers.dev` URL. That URL will be used in the AMP test email's `action-xhr` for each Todoist checkbox.
+- Todoist and Gmail credentials exist only as encrypted Cloudflare Worker secrets.
+- The Todoist API token is never placed in an email or committed to the repository.
+- The long-lived action secret is not embedded in the delivered email; the Worker creates a per-task HMAC signature instead.
+- A stale recurring-task occurrence is rejected rather than completing a newer occurrence.
+- `/complete` rejects ordinary browser requests that lack Gmail AMP sender/origin metadata.
