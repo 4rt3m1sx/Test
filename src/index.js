@@ -19,7 +19,6 @@ function json(body, status = 200, extraHeaders = {}) {
 function ampCorsHeaders(request, url) {
   const ampSender = request.headers.get("AMP-Email-Sender");
 
-  // AMP for Email CORS v2 takes precedence when present.
   if (ampSender) {
     if (ampSender.toLowerCase() !== ALLOWED_SENDER) {
       return { error: "Unauthorised AMP sender" };
@@ -32,7 +31,6 @@ function ampCorsHeaders(request, url) {
     };
   }
 
-  // AMP for Email CORS v1 fallback.
   const origin = request.headers.get("Origin");
   const sourceOrigin = url.searchParams.get("__amp_source_origin");
 
@@ -62,30 +60,18 @@ async function completeTodoistTask(request, env) {
   }
 
   if (request.method !== "POST") {
-    return json(
-      { ok: false, message: "POST required" },
-      405,
-      cors.headers,
-    );
+    return json({ ok: false, message: "POST required" }, 405, cors.headers);
   }
 
   if (!env.TODOIST_TOKEN || !env.EMAIL_ACTION_SECRET) {
-    return json(
-      { ok: false, message: "Worker secrets are not configured" },
-      500,
-      cors.headers,
-    );
+    return json({ ok: false, message: "Worker secrets are not configured" }, 500, cors.headers);
   }
 
   let form;
   try {
     form = await request.formData();
   } catch {
-    return json(
-      { ok: false, message: "Invalid form payload" },
-      400,
-      cors.headers,
-    );
+    return json({ ok: false, message: "Invalid form payload" }, 400, cors.headers);
   }
 
   const taskId = String(form.get("task") || "").trim();
@@ -93,84 +79,47 @@ async function completeTodoistTask(request, env) {
   const actionSecret = String(form.get("key") || "");
 
   if (actionSecret !== env.EMAIL_ACTION_SECRET) {
-    return json(
-      { ok: false, message: "Invalid action key" },
-      403,
-      cors.headers,
-    );
+    return json({ ok: false, message: "Invalid action key" }, 403, cors.headers);
   }
 
   if (!/^[A-Za-z0-9_-]+$/.test(taskId)) {
-    return json(
-      { ok: false, message: "Invalid Todoist task ID" },
-      400,
-      cors.headers,
-    );
+    return json({ ok: false, message: "Invalid Todoist task ID" }, 400, cors.headers);
   }
 
-  const authHeaders = {
-    Authorization: `Bearer ${env.TODOIST_TOKEN}`,
-  };
-
-  // Verify that the email still refers to the same current occurrence.
-  const taskResponse = await fetch(
-    `${TODOIST_API}/tasks/${encodeURIComponent(taskId)}`,
-    { headers: authHeaders },
-  );
+  const authHeaders = { Authorization: `Bearer ${env.TODOIST_TOKEN}` };
+  const taskResponse = await fetch(`${TODOIST_API}/tasks/${encodeURIComponent(taskId)}`, {
+    headers: authHeaders,
+  });
 
   if (taskResponse.status === 404) {
-    return json(
-      { ok: true, state: "already-completed", message: "Already completed" },
-      200,
-      cors.headers,
-    );
+    return json({ ok: true, state: "already-completed", message: "Already completed" }, 200, cors.headers);
   }
 
   if (!taskResponse.ok) {
-    return json(
-      { ok: false, message: "Could not verify Todoist task" },
-      502,
-      cors.headers,
-    );
+    return json({ ok: false, message: "Could not verify Todoist task" }, 502, cors.headers);
   }
 
   const task = await taskResponse.json();
   const currentDue = task?.due?.date ? String(task.due.date) : "none";
 
-  // Prevent an old email from completing a later occurrence of a recurring task.
   if (currentDue !== expectedDue) {
     return json(
-      {
-        ok: false,
-        state: "stale",
-        message: "This email contains an old occurrence of this task",
-      },
+      { ok: false, state: "stale", message: "This email contains an old occurrence of this task" },
       409,
       cors.headers,
     );
   }
 
-  const closeResponse = await fetch(
-    `${TODOIST_API}/tasks/${encodeURIComponent(taskId)}/close`,
-    {
-      method: "POST",
-      headers: authHeaders,
-    },
-  );
+  const closeResponse = await fetch(`${TODOIST_API}/tasks/${encodeURIComponent(taskId)}/close`, {
+    method: "POST",
+    headers: authHeaders,
+  });
 
   if (!closeResponse.ok) {
-    return json(
-      { ok: false, message: "Todoist completion failed" },
-      502,
-      cors.headers,
-    );
+    return json({ ok: false, message: "Todoist completion failed" }, 502, cors.headers);
   }
 
-  return json(
-    { ok: true, state: "completed", message: "Completed" },
-    200,
-    cors.headers,
-  );
+  return json({ ok: true, state: "completed", message: "Completed" }, 200, cors.headers);
 }
 
 class SmtpClient {
@@ -204,12 +153,9 @@ class SmtpClient {
       throw new Error(`SMTP expected ${expected}, got: ${line}`);
     }
 
-    // Multi-line SMTP replies use "250-..." until the final "250 ..." line.
     while (line.startsWith(`${expected}-`)) {
       line = await this.line();
-      if (!line.startsWith(expected)) {
-        throw new Error(`Malformed SMTP reply: ${line}`);
-      }
+      if (!line.startsWith(expected)) throw new Error(`Malformed SMTP reply: ${line}`);
     }
 
     return line;
@@ -312,19 +258,23 @@ function makeMimeMessage(taskId, expectedDue, actionSecret) {
     "",
   ];
 
-  // SMTP DATA requires dot-stuffing for lines beginning with a full stop.
   return parts.join("\r\n").replace(/(^|\r\n)\./g, "$1..");
 }
 
 async function sendTestEmail(request, env) {
   const url = new URL(request.url);
+  const isGet = request.method === "GET";
+  const isPost = request.method === "POST";
 
-  if (request.method !== "POST") {
-    return json({ ok: false, message: "POST required" }, 405);
+  if (!isGet && !isPost) {
+    return json({ ok: false, message: "GET or POST required" }, 405);
   }
 
-  const auth = request.headers.get("Authorization") || "";
-  if (!env.EMAIL_ACTION_SECRET || auth !== `Bearer ${env.EMAIL_ACTION_SECRET}`) {
+  const suppliedKey = isGet
+    ? String(url.searchParams.get("key") || "")
+    : String(request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+
+  if (!env.EMAIL_ACTION_SECRET || suppliedKey !== env.EMAIL_ACTION_SECRET) {
     return json({ ok: false, message: "Unauthorised" }, 403);
   }
 
@@ -332,15 +282,22 @@ async function sendTestEmail(request, env) {
     return json({ ok: false, message: "GMAIL_APP_PASSWORD is not configured" }, 500);
   }
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, message: "JSON body required" }, 400);
-  }
+  let taskId;
+  let expectedDue;
 
-  const taskId = String(body.task || "").trim();
-  const expectedDue = String(body.due || "none").trim();
+  if (isGet) {
+    taskId = String(url.searchParams.get("task") || "").trim();
+    expectedDue = String(url.searchParams.get("due") || "none").trim();
+  } else {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, message: "JSON body required" }, 400);
+    }
+    taskId = String(body.task || "").trim();
+    expectedDue = String(body.due || "none").trim();
+  }
 
   if (!/^[A-Za-z0-9_-]+$/.test(taskId)) {
     return json({ ok: false, message: "Invalid Todoist task ID" }, 400);
@@ -392,7 +349,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Simple deployment check that does not expose secrets.
     if (url.pathname === "/health") {
       return json({ ok: true, service: "todoist-email-complete" });
     }
