@@ -1,6 +1,10 @@
 import worker from "./index.js";
 
+const OLD_WORKER_URL = "https://test.lmludick.workers.dev";
+const PRODUCTION_WORKER_URL = "https://daily-assistant.lmludick.workers.dev";
+
 const nativeJsonParse = JSON.parse.bind(JSON);
+const nativeTextEncode = TextEncoder.prototype.encode;
 
 function escapeRawControlCharactersInJsonStrings(text) {
   let out = "";
@@ -59,6 +63,11 @@ JSON.parse = function resilientJsonParse(value, reviver) {
     if (repaired === value) throw error;
     return nativeJsonParse(repaired, reviver);
   }
+};
+
+TextEncoder.prototype.encode = function productionUrlTextEncode(value = "") {
+  const text = String(value).replaceAll(OLD_WORKER_URL, PRODUCTION_WORKER_URL);
+  return nativeTextEncode.call(this, text);
 };
 
 export default worker;
