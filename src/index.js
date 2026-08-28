@@ -196,7 +196,7 @@ function makeMimeMessage(taskId, expectedDue, actionSecret) {
   <h2>Todoist checkbox test</h2>
   <p>Click the checkbox. It should complete the Todoist task without opening another page.</p>
 
-  <form method="post" action-xhr="${WORKER_BASE_URL}/complete" target="_top">
+  <form method="post" action-xhr="${WORKER_BASE_URL}/complete">
     <input type="hidden" name="task" value="${safeTask}">
     <input type="hidden" name="due" value="${safeDue}">
     <input type="hidden" name="key" value="${safeKey}">
