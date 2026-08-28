@@ -190,40 +190,23 @@ function makeMimeMessage(taskId, expectedDue, actionSecret) {
   <meta charset="utf-8">
   <script async src="https://cdn.ampproject.org/v0.js"></script>
   <script async custom-element="amp-form" src="https://cdn.ampproject.org/v0/amp-form-0.1.js"></script>
-  <script async custom-element="amp-bind" src="https://cdn.ampproject.org/v0/amp-bind-0.1.js"></script>
   <style amp4email-boilerplate>body{visibility:hidden}</style>
-  <style amp-custom>
-    body{font-family:Arial,sans-serif;background:#f5f5f5;color:#222;padding:24px}
-    .card{max-width:620px;margin:auto;background:#fff;border-radius:12px;padding:24px}
-    .task{border:0;background:transparent;font:16px Arial,sans-serif;padding:8px 0;cursor:pointer;color:#222;text-align:left}
-    .box{display:inline-block;width:24px;font-size:20px;vertical-align:-1px}
-    .done{font:16px Arial,sans-serif;padding:8px 0}
-    .muted{font-size:13px;color:#777;margin-top:16px}
-    .error{font-size:13px;color:#9b1c1c;margin-top:8px}
-  </style>
 </head>
 <body>
-  <amp-state id="taskState"><script type="application/json">{"done":false}</script></amp-state>
-  <div class="card">
-    <h2>Todoist checkbox test</h2>
-    <p>Click the checkbox. It should complete the Todoist task without opening another page.</p>
+  <h2>Todoist checkbox test</h2>
+  <p>Click the checkbox. It should complete the Todoist task without opening another page.</p>
 
-    <form method="post"
-          action-xhr="${WORKER_BASE_URL}/complete"
-          target="_top"
-          on="submit-success:AMP.setState({taskState:{done:true}})"
-          [hidden]="taskState.done">
-      <input type="hidden" name="task" value="${safeTask}">
-      <input type="hidden" name="due" value="${safeDue}">
-      <input type="hidden" name="key" value="${safeKey}">
-      <button type="submit" class="task"><span class="box">&#9744;</span>AMP email completion test</button>
-      <div submitting class="muted">Completing in Todoist...</div>
-      <div submit-error class="error">Could not complete the task. Nothing was changed.</div>
-    </form>
+  <form method="post" action-xhr="${WORKER_BASE_URL}/complete" target="_top">
+    <input type="hidden" name="task" value="${safeTask}">
+    <input type="hidden" name="due" value="${safeDue}">
+    <input type="hidden" name="key" value="${safeKey}">
+    <button type="submit">&#9744; AMP email completion test</button>
+    <div submitting>Completing in Todoist...</div>
+    <div submit-success>&#9745; AMP email completion test</div>
+    <div submit-error>Could not complete the task. Nothing was changed.</div>
+  </form>
 
-    <div class="done" hidden [hidden]="!taskState.done"><span class="box">&#9745;</span>AMP email completion test</div>
-    <div class="muted">Expected result: the checkbox changes here in this email. No new tab or window.</div>
-  </div>
+  <p>Expected result: the checkbox changes here in this email. No new tab or window.</p>
 </body>
 </html>`;
 
