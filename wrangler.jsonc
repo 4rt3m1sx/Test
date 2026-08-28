@@ -3,5 +3,8 @@
   "name": "todoist-email-complete",
   "main": "src/index.js",
   "compatibility_date": "2026-08-28",
-  "workers_dev": true
+  "workers_dev": true,
+  "triggers": {
+    "crons": ["*/2 * * * *"]
+  }
 }
