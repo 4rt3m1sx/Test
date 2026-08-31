@@ -2,7 +2,7 @@ import worker from "./sync.js";
 
 const OLD_WORKER_URL = "https://test.lmludick.workers.dev";
 const PRODUCTION_WORKER_URL = "https://daily-assistant.lmludick.workers.dev";
-const LIVE_VERSION = "sibling-status-v1";
+const LIVE_VERSION = "persistent-status-v2";
 
 function utf8Encode(value) {
   const text = String(value);
@@ -44,30 +44,46 @@ function injectCss(text) {
   if (text.includes(".live-task{")) return text;
   const marker = "    .footer{padding:8px 26px 22px;color:#9aa0a6;font-size:11px}\n";
   if (!text.includes(marker)) return text;
-  const css = `${marker}    .live-task{margin:0 0 7px}\n    .live-task .task-form{margin:0}\n    .check-stack{position:relative;flex:0 0 30px;width:30px;height:30px;margin:0 5px 0 -5px}\n    .check-stack .task-form{position:absolute;top:0;left:0;width:30px;height:30px}\n    .check-stack .check{margin:0}\n    .task-status-overlay{position:absolute;top:0;left:0;z-index:2;width:30px;height:30px}\n    .completed-overlay{display:block;width:30px;height:30px;padding:5px;box-sizing:border-box}\n    .checked-sync{display:inline-block;background:#5f6368;border-color:#5f6368}\n`;
+  const css = `${marker}    .live-task{position:relative}\n    .task-status-overlay{position:absolute;top:0;left:-5px;z-index:2;width:30px;height:30px}\n    .completed-overlay{display:block;width:30px;height:30px;padding:5px;box-sizing:border-box}\n    .checked-sync{display:inline-block;background:#5f6368;border-color:#5f6368}\n`;
   return text.replace(marker, css);
 }
 
 function upgradeTaskForms(text) {
   if (!text.includes("<html amp4email>")) return text;
-  if (text.includes("task-status-overlay")) return text;
+  if (text.includes('<amp-list class="task-status-overlay"')) return text;
 
-  const pattern = /<form class="task-form indent-(\d)" method="post" action-xhr="([^"]+\/complete)">\s*<input type="hidden" name="task" value="([^"]+)">\s*<input type="hidden" name="due" value="([^"]+)">\s*<input type="hidden" name="sig" value="([^"]+)">\s*<div class="task-row">\s*(<button class="check" type="submit" aria-label="[^"]*">[\s\S]*?<\/button>)\s*(<div class="task-copy">[\s\S]*?<\/div>)\s*<\/div>\s*<div submit-success class="success-marker"><\/div>\s*<div submit-error class="task-error">Could not complete this task in Todoist\.<\/div>\s*<\/form>/g;
+  const pattern = /<form class="task-form indent-(\d)" method="post" action-xhr="([^"]+\/complete)">([\s\S]*?)<\/form>/g;
 
-  return text.replace(pattern, (_m, indent, actionRaw, taskId, due, sig, button, taskCopy) => {
+  return text.replace(pattern, (fullForm, _indent, actionRaw, formBody) => {
+    const taskMatch = formBody.match(/<input type="hidden" name="task" value="([^"]+)">/);
+    const dueMatch = formBody.match(/<input type="hidden" name="due" value="([^"]+)">/);
+    const sigMatch = formBody.match(/<input type="hidden" name="sig" value="([^"]+)">/);
+    if (!taskMatch || !dueMatch || !sigMatch) return fullForm;
+
+    const taskId = taskMatch[1];
+    const due = dueMatch[1];
+    const sig = sigMatch[1];
     const action = actionRaw.replaceAll(OLD_WORKER_URL, PRODUCTION_WORKER_URL);
+    const originalForm = fullForm.replace(`action-xhr="${actionRaw}"`, `action-xhr="${action}"`);
     const statusUrl = `${PRODUCTION_WORKER_URL}/task-status?task=${encodeURIComponent(taskId)}&due=${encodeURIComponent(due)}&sig=${encodeURIComponent(sig)}`;
 
-    return `<div class="live-task indent-${indent}">\n    <div class="task-row">\n      <div class="check-stack">\n        <form class="task-form" method="post" action-xhr="${action}">\n          <input type="hidden" name="task" value="${taskId}">\n          <input type="hidden" name="due" value="${due}">\n          <input type="hidden" name="sig" value="${sig}">\n          ${button}\n          <div submit-success class="success-marker"></div>\n          <div submit-error class="task-error">Could not complete this task in Todoist.</div>\n        </form>\n        <amp-list class="task-status-overlay" width="30" height="30" layout="fixed" src="${htmlAttrUrl(statusUrl)}" binding="no">\n          <template type="amp-mustache">{{#completed}}<span class="completed-overlay" aria-label="Completed"><span class="box checked-sync">&#10003;</span></span>{{/completed}}</template>\n        </amp-list>\n      </div>\n      ${taskCopy}\n    </div>\n  </div>`;
+    return `<div class="live-task">\n      ${originalForm}\n      <amp-list class="task-status-overlay" width="30" height="30" layout="fixed" src="${htmlAttrUrl(statusUrl)}" binding="no">\n        <template type="amp-mustache">{{#completed}}<span class="completed-overlay" aria-label="Completed"><span class="box checked-sync">&#10003;</span></span>{{/completed}}</template>\n      </amp-list>\n    </div>`;
   });
 }
 
 function transformOutbound(value) {
   let text = String(value).replaceAll(OLD_WORKER_URL, PRODUCTION_WORKER_URL);
   if (!text.includes("<html amp4email>")) return text;
-  text = injectScripts(text);
-  text = injectCss(text);
+
   text = upgradeTaskForms(text);
+
+  // Only add AMP list/template extensions when task rows were actually upgraded.
+  // This prevents Gmail rejecting the document for unused AMP extensions if a
+  // future renderer change causes the task-form matcher not to match.
+  if (text.includes('<amp-list class="task-status-overlay"')) {
+    text = injectScripts(text);
+    text = injectCss(text);
+  }
   return text;
 }
 
