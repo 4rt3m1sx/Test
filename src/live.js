@@ -2,7 +2,7 @@ import worker from "./sync.js";
 
 const OLD_WORKER_URL = "https://test.lmludick.workers.dev";
 const PRODUCTION_WORKER_URL = "https://daily-assistant.lmludick.workers.dev";
-const LIVE_VERSION = "persistent-status-v3-cors";
+const LIVE_VERSION = "persistent-status-v4-completed";
 
 function utf8Encode(value) {
   const text = String(value);
