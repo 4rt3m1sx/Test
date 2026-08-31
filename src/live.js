@@ -2,7 +2,7 @@ import worker from "./sync.js";
 
 const OLD_WORKER_URL = "https://test.lmludick.workers.dev";
 const PRODUCTION_WORKER_URL = "https://daily-assistant.lmludick.workers.dev";
-const LIVE_VERSION = "persistent-status-v2";
+const LIVE_VERSION = "persistent-status-v3-cors";
 
 function utf8Encode(value) {
   const text = String(value);
@@ -77,9 +77,6 @@ function transformOutbound(value) {
 
   text = upgradeTaskForms(text);
 
-  // Only add AMP list/template extensions when task rows were actually upgraded.
-  // This prevents Gmail rejecting the document for unused AMP extensions if a
-  // future renderer change causes the task-form matcher not to match.
   if (text.includes('<amp-list class="task-status-overlay"')) {
     text = injectScripts(text);
     text = injectCss(text);
