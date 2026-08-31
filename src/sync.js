@@ -45,21 +45,27 @@ function constantTimeEqual(a, b) {
   return diff === 0;
 }
 
-function gmailStatusCors(request, url) {
-  const ampSender = request.headers.get("AMP-Email-Sender");
-  const sourceOrigin = url.searchParams.get("__amp_source_origin");
-  const suppliedSender = ampSender || sourceOrigin;
+function normalizeSender(value) {
+  return String(value || "").trim().toLowerCase().replace(/^mailto:/, "");
+}
 
-  if (suppliedSender && suppliedSender.toLowerCase() !== AMP_SENDER) {
+function gmailStatusCors(request, url) {
+  const ampSenderRaw = request.headers.get("AMP-Email-Sender");
+  const sourceOriginRaw = url.searchParams.get("__amp_source_origin");
+  const sender = normalizeSender(ampSenderRaw || sourceOriginRaw);
+
+  if (sender && sender !== AMP_SENDER) {
     return { error: "Unauthorised AMP sender" };
   }
 
-  const origin = request.headers.get("Origin");
+  const origin = request.headers.get("Origin") || "https://mail.google.com";
+  const sourceOriginResponse = sourceOriginRaw || AMP_SENDER;
+
   return {
     headers: {
       "AMP-Email-Allow-Sender": AMP_SENDER,
-      "AMP-Access-Control-Allow-Source-Origin": AMP_SENDER,
-      "Access-Control-Allow-Origin": origin || "https://mail.google.com",
+      "AMP-Access-Control-Allow-Source-Origin": sourceOriginResponse,
+      "Access-Control-Allow-Origin": origin,
       "Access-Control-Expose-Headers": "AMP-Access-Control-Allow-Source-Origin, AMP-Email-Allow-Sender",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "AMP-Email-Sender, Content-Type",
