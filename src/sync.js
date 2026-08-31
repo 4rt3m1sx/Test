@@ -51,27 +51,38 @@ function normalizeSender(value) {
 
 function gmailStatusCors(request, url) {
   const ampSenderRaw = request.headers.get("AMP-Email-Sender");
+  const origin = request.headers.get("Origin");
   const sourceOriginRaw = url.searchParams.get("__amp_source_origin");
-  const sender = normalizeSender(ampSenderRaw || sourceOriginRaw);
 
-  if (sender && sender !== AMP_SENDER) {
-    return { error: "Unauthorised AMP sender" };
+  // AMP for Email CORS v2. This takes precedence when AMP-Email-Sender exists.
+  if (ampSenderRaw) {
+    if (normalizeSender(ampSenderRaw) !== AMP_SENDER) {
+      return { error: "Unauthorised AMP sender" };
+    }
+    return {
+      headers: {
+        "AMP-Email-Allow-Sender": ampSenderRaw,
+        "Vary": "AMP-Email-Sender",
+      },
+    };
   }
 
-  const origin = request.headers.get("Origin") || "https://mail.google.com";
-  const sourceOriginResponse = sourceOriginRaw || AMP_SENDER;
+  // Deprecated v1 fallback, used only when v2 sender header is absent.
+  if (origin) {
+    if (!sourceOriginRaw || normalizeSender(sourceOriginRaw) !== AMP_SENDER) {
+      return { error: "Unauthorised AMP source origin" };
+    }
+    return {
+      headers: {
+        "Access-Control-Allow-Origin": origin,
+        "AMP-Access-Control-Allow-Source-Origin": sourceOriginRaw,
+        "Access-Control-Expose-Headers": "AMP-Access-Control-Allow-Source-Origin",
+        "Vary": "Origin",
+      },
+    };
+  }
 
-  return {
-    headers: {
-      "AMP-Email-Allow-Sender": AMP_SENDER,
-      "AMP-Access-Control-Allow-Source-Origin": sourceOriginResponse,
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Expose-Headers": "AMP-Access-Control-Allow-Source-Origin, AMP-Email-Allow-Sender",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "AMP-Email-Sender, Content-Type",
-      "Vary": "Origin, AMP-Email-Sender",
-    },
-  };
+  return { error: "Missing AMP email CORS identity" };
 }
 
 async function taskStatus(request, env) {
