@@ -2,6 +2,7 @@ import worker from "./sync.js";
 
 const OLD_WORKER_URL = "https://test.lmludick.workers.dev";
 const PRODUCTION_WORKER_URL = "https://daily-assistant.lmludick.workers.dev";
+const LIVE_VERSION = "sibling-status-v1";
 
 function utf8Encode(value) {
   const text = String(value);
@@ -74,4 +75,15 @@ TextEncoder.prototype.encode = function liveTodoistAmpEncode(value = "") {
   return utf8Encode(transformOutbound(value));
 };
 
-export default worker;
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (url.pathname === "/live-version") {
+      return new Response(LIVE_VERSION, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+    return worker.fetch(request, env, ctx);
+  },
+  async scheduled(controller, env, ctx) {
+    return worker.scheduled(controller, env, ctx);
+  },
+};
