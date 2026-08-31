@@ -120,13 +120,19 @@ async function taskStatus(request, env) {
 
   const task = await response.json();
   const currentDue = task?.due?.date ? String(task.due.date) : "none";
-  const isExactOccurrenceOpen = currentDue === expectedDue;
+  const taskIsCompleted = task?.checked === true || task?.is_completed === true || task?.completed === true || Boolean(task?.completed_at || task?.completedAt);
+  const isExactOccurrenceOpen = !taskIsCompleted && currentDue === expectedDue;
+  const state = taskIsCompleted
+    ? "completed"
+    : isExactOccurrenceOpen
+      ? "open"
+      : "completed-or-superseded";
 
   return json({
     items: [{
       open: isExactOccurrenceOpen,
       completed: !isExactOccurrenceOpen,
-      state: isExactOccurrenceOpen ? "open" : "completed-or-superseded",
+      state,
     }],
   }, 200, cors.headers);
 }
