@@ -2,7 +2,7 @@ import worker from "./sync.js";
 
 const OLD_WORKER_URL = "https://test.lmludick.workers.dev";
 const PRODUCTION_WORKER_URL = "https://daily-assistant.lmludick.workers.dev";
-const LIVE_VERSION = "persistent-status-v4-completed";
+const LIVE_VERSION = "persistent-status-v5-safe-stacking";
 
 function utf8Encode(value) {
   const text = String(value);
@@ -44,7 +44,7 @@ function injectCss(text) {
   if (text.includes(".live-task{")) return text;
   const marker = "    .footer{padding:8px 26px 22px;color:#9aa0a6;font-size:11px}\n";
   if (!text.includes(marker)) return text;
-  const css = `${marker}    .live-task{position:relative}\n    .task-status-overlay{position:absolute;top:0;left:-5px;z-index:2;width:30px;height:30px}\n    .completed-overlay{display:block;width:30px;height:30px;padding:5px;box-sizing:border-box}\n    .checked-sync{display:inline-block;background:#5f6368;border-color:#5f6368}\n`;
+  const css = `${marker}    .live-task{position:relative}\n    .live-task .task-form{position:relative;z-index:1}\n    .task-status-overlay{position:absolute;top:0;left:-5px;width:30px;height:30px}\n    .completed-overlay{position:absolute;top:0;left:0;z-index:2;display:block;width:30px;height:30px;padding:5px;box-sizing:border-box}\n    .checked-sync{display:inline-block;background:#5f6368;border-color:#5f6368}\n`;
   return text.replace(marker, css);
 }
 
